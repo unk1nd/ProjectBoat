@@ -1,20 +1,25 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
+using Microsoft.Xna.Framework.Content;
+using Microsoft.Xna.Framework.GamerServices;
+using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
+using Microsoft.Xna.Framework.Media;
 
 namespace ProjectBoat
 {
     class boat
     {
-        private double x;
-        private double y;
+        private float x;
+        private float y;
         private float boatRotY;
-        private Vector3 boatPosition;
-        private Model boatModel;
+        public Vector3 boatPosition;
+        public Model boatModel;
         private Texture2D boatTexture;
+        private IInputHandler input;
 
         public Texture2D BoatTexture
         {
@@ -28,13 +33,13 @@ namespace ProjectBoat
             set { boatModel = value; }
         }
 
-        public double X
+        public float X
         {
             get { return x; }
             set { x = value; }
         }
 
-        public double Y
+        public float Y
         {
             get { return y; }
             set { y = value; }
@@ -52,15 +57,17 @@ namespace ProjectBoat
             set { boatPosition = value; }
         }
 
-        public boat(double x, double y, float boatRotY, Vector3 boatPosition, Texture2D boatTexture)
+        public boat(float x, float y, float boatRotY)
         {
             
             this.x = x;
             this.y = y;
             this.boatRotY = boatRotY;
-            this.boatPosition = boatPosition;
-            this.boatTexture = boatTexture;
+            this.boatPosition = new Vector3(this.x, this.y, 0); ;
+            //this.boatTexture = boatTexture;
+            //this.boatModel = boatModel;
             
         }
+
     }
 }
