@@ -13,13 +13,19 @@ namespace ProjectBoat
         private double y;
         private float boatRotY;
         private Vector3 boatPosition;
-        private Model planetModel;
+        private Model boatModel;
         private Texture2D boatTexture;
 
         public Texture2D BoatTexture
         {
             get { return boatTexture; }
             set { boatTexture = value; }
+        }
+
+        public Model BoatModel
+        {
+            get { return boatModel; }
+            set { boatModel = value; }
         }
 
         public double X
@@ -44,6 +50,17 @@ namespace ProjectBoat
         {
             get { return boatPosition; }
             set { boatPosition = value; }
+        }
+
+        public boat(double x, double y, float boatRotY, Vector3 boatPosition, Texture2D boatTexture)
+        {
+            
+            this.x = x;
+            this.y = y;
+            this.boatRotY = boatRotY;
+            this.boatPosition = boatPosition;
+            this.boatTexture = boatTexture;
+            
         }
     }
 }
