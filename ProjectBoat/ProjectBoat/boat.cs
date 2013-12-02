@@ -57,13 +57,13 @@ namespace ProjectBoat
             set { boatPosition = value; }
         }
 
-        public boat(float x, float y, float boatRotY)
+        public boat(float x, float y, float boatRotY, Vector3 boatPosition)
         {
             
             this.x = x;
             this.y = y;
             this.boatRotY = boatRotY;
-            this.boatPosition = new Vector3(this.x, this.y, 0); ;
+            this.boatPosition = boatPosition;
             //this.boatTexture = boatTexture;
             //this.boatModel = boatModel;
             

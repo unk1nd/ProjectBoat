@@ -35,8 +35,15 @@ namespace ProjectBoat
         private Stack<Matrix> matrixStrack = new Stack<Matrix>();
         private boat heroBoat;
         private Model heroBoatModel;
+        private Model worldTemp;
         private Texture2D[] Textures = new Texture2D[10];
         private boat[] boatArray = new boat[1];
+        private float heroX=0,heroY=0;
+        private Vector3 heroPosition = Vector3.Zero;
+        private float heroRot;
+        Vector3 modelVelocity = Vector3.Zero;
+        
+
         /*
         private Vector3 camTar = Vector3.Zero;
         private Vector3 camUpVec = Vector3.Up;
@@ -95,11 +102,16 @@ namespace ProjectBoat
 
         private void loadBoatObjects()
         {
-            //Textures[0] = Content.Load<Texture2D>("Textures/tex_ship_hero");    // HeroBoat
+            Textures[0] = Content.Load<Texture2D>("Textures/tex_ship_hero");    // HeroBoat
 
-            boatArray[0] = new boat(1, 1, 10);
+            boatArray[0] = new boat(10, 10, 10, new Vector3(10,10,10));
             boatArray[0].BoatModel = Content.Load<Model>("Models/HeroShip");  // HeroBoat Model
             (boatArray[0].BoatModel.Meshes[0].Effects[0] as BasicEffect).EnableDefaultLighting();
+
+            worldTemp = Content.Load<Model>("Models/World_Total");
+            (worldTemp.Meshes[0].Effects[0] as BasicEffect).EnableDefaultLighting();
+            (worldTemp.Meshes[0].Effects[0] as BasicEffect).Texture = Textures[0];
+            (worldTemp.Meshes[0].Effects[0] as BasicEffect).TextureEnabled = true;
 
             /*
             //for (int i = 0; i < 8; i++)
@@ -124,23 +136,57 @@ namespace ProjectBoat
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
                 this.Exit();
 
-            if (input.KeyboardState.IsKeyDown(Keys.Up))
-            {
+            // Get some input.
+            UpdateInput();
 
-                boatArray[0].X = boatArray[0].X - 0.1f;
-                boatArray[0].boatPosition = new Vector3(boatArray[0].X, boatArray[0].Y, 0);
+            // Add velocity to the current position.
+            heroPosition += modelVelocity;
 
-            }
-            if (input.KeyboardState.IsKeyDown(Keys.Down))
-            {
-
-                boatArray[0].X = boatArray[0].X + 0.1f;
-                boatArray[0].boatPosition = new Vector3(boatArray[0].X, boatArray[0].Y, 0);
-            }
+            // Bleed off velocity over time.
+            modelVelocity *= 0.95f;      
 
             base.Update(gameTime);
         }
 
+        protected void UpdateInput()
+        {
+            Vector3 modelVelocityAdd = Vector3.Zero;
+            modelVelocityAdd.X = -(float)Math.Sin(heroRot);
+            modelVelocityAdd.Z = -(float)Math.Cos(heroRot);
+          
+            if (input.KeyboardState.IsKeyDown(Keys.W))
+            {
+
+                modelVelocityAdd *= (float)-0.001f;
+                // Finally, add this vector to our velocity.
+                modelVelocity += modelVelocityAdd;
+                
+            }
+
+
+            if (input.KeyboardState.IsKeyDown(Keys.S))
+            {
+                /*
+                heroY = heroY - 0.1f;
+                heroPosition = new Vector3(heroX, 0, heroY);
+                boatArray[0].boatPosition = new Vector3(heroX, heroY, 0);
+                 */
+
+            }
+            
+
+            if (input.KeyboardState.IsKeyDown(Keys.A))
+            {
+                heroRot = heroRot + 0.1f;
+            }
+
+            if (input.KeyboardState.IsKeyDown(Keys.D))
+            {
+                heroRot = heroRot - 0.1f;
+            }
+
+            
+        }
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(Color.Blue);
@@ -171,7 +217,7 @@ namespace ProjectBoat
             effect.EmissiveColor = Color.Red.ToVector3();
             effect.DirectionalLight0.Enabled = false;
 
-            //this.DrawHero(gameTime);
+            this.DrawHero(gameTime);
             //this.DrawBoat(gameTime);
 
             foreach (boat b in boatArray)
@@ -196,7 +242,7 @@ namespace ProjectBoat
             matrixStrack.Push(world);
 
             effect.World = world;
-            heroBoatModel.Draw(world, camera.View, camera.Projection);
+            worldTemp.Draw(world, camera.View, camera.Projection);
         }
 
 
@@ -205,9 +251,9 @@ namespace ProjectBoat
             Matrix matScale, matRotateY, matTrans;
 
             matScale = Matrix.CreateScale(0.005f);
-            matTrans = Matrix.CreateTranslation(0.0f, 0.0f, 0.0f);
+            matTrans = Matrix.CreateTranslation(heroPosition);
 
-            matRotateY = Matrix.CreateRotationY(0f);
+            matRotateY = Matrix.CreateRotationY(heroRot);
 
             world = matScale * matRotateY * matTrans;
             matrixStrack.Push(world);
