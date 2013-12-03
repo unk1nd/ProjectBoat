@@ -24,7 +24,7 @@ namespace ProjectBoat
         private VertexPositionColor[] verticesTop;
 
         private BasicEffect effect;
-        private VertexDeclaration mVertPosColor;
+       // private VertexDeclaration mVertPosColor;
 
         //WVP-matrisene:
         private Matrix world;

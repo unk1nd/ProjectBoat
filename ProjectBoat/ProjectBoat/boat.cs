@@ -19,7 +19,7 @@ namespace ProjectBoat
         public Vector3 boatPosition;
         public Model boatModel;
         private Texture2D boatTexture;
-        private IInputHandler input;
+        //private IInputHandler input;
 
         public Texture2D BoatTexture
         {

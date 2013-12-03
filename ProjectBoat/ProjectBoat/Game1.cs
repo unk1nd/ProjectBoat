@@ -33,7 +33,7 @@ namespace ProjectBoat
         private BasicEffect effect;
         private Effect effect2;
         private SpriteFont font;
-        private Matrix world;
+        private Matrix world, view, proj;
         private SpriteBatch spriteBatch;
         private Stack<Matrix> matrixStrack = new Stack<Matrix>();
         private Model worldTemp;
@@ -41,8 +41,11 @@ namespace ProjectBoat
         private boat[] boatArray = new boat[3];
         private boat HERO;
         private Vector3 heroPosition = Vector3.Zero;
-        private float heroRot;
-        Vector3 modelVelocity = Vector3.Zero;
+        //private float heroRot;
+        private Vector3 modelVelocity = Vector3.Zero;
+
+        
+        private Quaternion heroRot = Quaternion.Identity;
 
         // kolisjons stuff
         private CubeComponent cube;
@@ -79,6 +82,8 @@ namespace ProjectBoat
         private Vector3 camUpVec = Vector3.Up;
         private Vector3 camPos = new Vector3(1f, 2f, 0f);
         */
+
+        private bool isCollition = false;
         #endregion
 
 
@@ -266,10 +271,12 @@ namespace ProjectBoat
 
             // Get some input.
             UpdateInput();
-            
-            // Add velocity to the current position.
-            heroPosition += modelVelocity;
-            
+
+            if (!isCollition)
+            {
+                // Add velocity to the current position.
+                heroPosition += modelVelocity;
+            }   
             // Bleed off velocity over time.
             modelVelocity *= 0.95f;
 
@@ -284,31 +291,47 @@ namespace ProjectBoat
         protected void UpdateInput()
         {
             Vector3 modelVelocityAdd = Vector3.Zero;
-            modelVelocityAdd.X = -(float)Math.Sin(heroRot);
-            modelVelocityAdd.Z = -(float)Math.Cos(heroRot);
-            
+
+            float leftRightRot = 0;
 
             if (input.KeyboardState.IsKeyDown(Keys.W))
             {
                 modelVelocityAdd *= (float)-0.001f;  
                 modelVelocity += modelVelocityAdd;
-                
-                
+                float moveSpeed = 0.01f;
+                MoveForward(ref heroPosition, heroRot, moveSpeed);
             }
 
             if (input.KeyboardState.IsKeyDown(Keys.A))
             {
-                heroRot = heroRot + 0.1f;                           
+                float turn = 0.1f;
+               // heroRot = heroRot + turn;
+                leftRightRot -= turn;           
             }
 
             if (input.KeyboardState.IsKeyDown(Keys.D))
             {
-                heroRot = heroRot - 0.1f;  
+                //heroRot = heroRot - 0.1f; 
+                float turn = 0.1f;
+                // heroRot = heroRot + turn;
+                leftRightRot += turn;       
             }
-
+            float upDownRot = 0;
+            Quaternion additionalRot = Quaternion.CreateFromAxisAngle(new Vector3(0, -1, 0), leftRightRot) * Quaternion.CreateFromAxisAngle(new Vector3(1, 0, 0), upDownRot);
+            heroRot *= additionalRot;            
 
         }
         #endregion
+
+        private void MoveForward(ref Vector3 position, Quaternion rotationQuat, float speed)
+        {
+            if (!isCollition)
+            {
+                Vector3 addVector = Vector3.Transform(new Vector3(0, 0, +2), rotationQuat);
+                position += addVector * speed;
+            }
+            else isCollition = false;
+        }
 
         #region Vannet
 
@@ -374,6 +397,18 @@ namespace ProjectBoat
         }
         #endregion
 
+        private void UpdateCamera()
+        {
+            Vector3 campos = new Vector3(0, 5, -10);
+
+            campos = Vector3.Transform(campos, Matrix.CreateFromQuaternion(heroRot));
+            campos += heroPosition;
+            Vector3 camup = new Vector3(0, 1, 0);
+            camup = Vector3.Transform(camup, Matrix.CreateFromQuaternion(heroRot));
+            view = Matrix.CreateLookAt(campos, heroPosition, camup);
+            proj = Matrix.CreatePerspectiveFieldOfView(MathHelper.PiOver4, device.Viewport.AspectRatio, 0.2f, 500.0f);
+        }
+
         #region draw
 
         protected override void Draw(GameTime gameTime)
@@ -392,10 +427,12 @@ namespace ProjectBoat
             device.RasterizerState = rasterizerState1;
 
             effect.World = Matrix.Identity;
-            effect.Projection = camera.ProjectionMatrix;
-            effect.View = camera.ViewMatrix;
+            effect.Projection = proj;
+            effect.View = view;
             DrawFloor();
-          
+
+            Matrix worldMatrix = Matrix.CreateScale(0.0005f, 0.0005f, 0.0005f) * Matrix.CreateRotationY(MathHelper.Pi) * Matrix.CreateFromQuaternion(heroRot) * Matrix.CreateTranslation(heroPosition);
+
             /*
             effect.LightingEnabled = true;
             effect.DirectionalLight0.Enabled = true;
@@ -409,12 +446,24 @@ namespace ProjectBoat
             this.DrawWorld(gameTime);
             this.DrawHERO1(modelHERO, out worldHERO, gameTime);
             this.DrawBoats(modelEnemy, out worldEnemy, gameTime, boatArray[1]);
-                
+
             if (this.ModelsCollide(modelHERO, worldHERO, modelEnemy, worldEnemy))
             {
                 spriteBatch.Begin();
                 spriteBatch.DrawString(font, "COLLISJON!!!! ", new Vector2(0.0f, 50), Color.Red);
                 spriteBatch.End();
+
+                Vector3 modelVelocityAdd = Vector3.Zero;
+                modelVelocityAdd *= (float)-0.111f;
+                modelVelocity += modelVelocityAdd;
+                // Add velocity to the current position.
+                heroPosition -= modelVelocity;
+
+                isCollition = true;
+            }
+            else 
+            {
+                isCollition = false;
             }
             
 
@@ -423,7 +472,7 @@ namespace ProjectBoat
             spriteBatch.End();
 
 
-            
+            UpdateCamera();
 
             base.Draw(gameTime);
         }
@@ -446,8 +495,8 @@ namespace ProjectBoat
             //matTransl = Matrix.CreateTranslation(0.0f, 0.0f, 0.0f);
             matTransl = Matrix.CreateTranslation(heroPosition);
 
-            
-            matRotY = Matrix.CreateRotationY(heroRot);
+
+            matRotY = Matrix.CreateFromQuaternion(heroRot);
             
 
             //3. Bygg world-matrisa:
@@ -461,8 +510,8 @@ namespace ProjectBoat
                 foreach (BasicEffect effect in mesh.Effects)
                 {
                     effect.World = matrixHERO[mesh.ParentBone.Index] * world;
-                    effect.View = camera.ViewMatrix;
-                    effect.Projection = camera.ProjectionMatrix;
+                    effect.View = view;
+                    effect.Projection = proj;
                     // 4b. Lys & action:
                     //effect.EnableDefaultLighting();
                     //effect.LightingEnabled = true;
@@ -490,7 +539,7 @@ namespace ProjectBoat
             matrixStrack.Push(world);
 
             effect.World = world;
-            worldTemp.Draw(world, camera.ViewMatrix, camera.ProjectionMatrix);
+            worldTemp.Draw(world, view, proj);
         }
         #endregion
 
@@ -526,8 +575,8 @@ namespace ProjectBoat
                 foreach (BasicEffect effect in mesh.Effects)
                 {
                     effect.World = matrixEnemy[mesh.ParentBone.Index] * world;
-                    effect.View = camera.ViewMatrix;
-                    effect.Projection = camera.ProjectionMatrix;
+                    effect.View = view;
+                    effect.Projection = proj;
                     // 4b. Lys & action:
                     //effect.EnableDefaultLighting();
                     //effect.LightingEnabled = true;
