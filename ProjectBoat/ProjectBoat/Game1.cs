@@ -43,9 +43,7 @@ namespace ProjectBoat
 
         private Vector3 modelVelocity = Vector3.Zero;
         private Quaternion heroRot = Quaternion.Identity;
-
-        // kolisjons stuff
-       // private CubeComponent cube;
+        Quaternion cameraRotation = Quaternion.Identity;
         
         //Modeller:
         private Model modelHERO;
@@ -72,10 +70,10 @@ namespace ProjectBoat
         private bool infotext = false;
         private bool isCollition = false;
 
-        #endregion
-
+       
 
         public bool isFullScreen = false;
+        #endregion
 
         public Game1()
         {
@@ -135,14 +133,10 @@ namespace ProjectBoat
             Model model = Content.Load<Model>(modelName);
             matrix = new Matrix[model.Bones.Count];
 
-            //Denne sørger for at absolutte transformasjonsmatriser for hver
-            //ModelMesh legges inn i matrisetabellen:
             model.CopyAbsoluteBoneTransformsTo(matrix);
 
-            //Komplett omsluttende BoundingSphere:
             BoundingSphere completeBoundingSphere = new BoundingSphere();
 
-            //Gjennomløper alle del-sfærer:
             foreach (ModelMesh mesh in model.Meshes)
             {
                 BoundingSphere origMeshSphere = mesh.BoundingSphere;
@@ -208,9 +202,7 @@ namespace ProjectBoat
         }
         
         protected override void UnloadContent()
-        {
-        
-        }
+        {}
 
         #region update
         protected override void Update(GameTime gameTime)
@@ -267,7 +259,7 @@ namespace ProjectBoat
             heroRot *= additionalRot;            
 
         }
-        #endregion
+        
 
         private void MoveForward(ref Vector3 position, Quaternion rotationQuat, float speed)
         {
@@ -278,6 +270,7 @@ namespace ProjectBoat
             }
             else isCollition = false;
         }
+        #endregion
 
         #region Vannet
 
@@ -343,12 +336,16 @@ namespace ProjectBoat
 
         private void UpdateCamera()
         {
-            Vector3 campos = new Vector3(0, 2, -10);
 
-            campos = Vector3.Transform(campos, Matrix.CreateFromQuaternion(heroRot));
+            cameraRotation = Quaternion.Lerp(cameraRotation, heroRot, 0.1f);
+
+            Vector3 campos = new Vector3(0, 2, -10);
+            campos = Vector3.Transform(campos, Matrix.CreateFromQuaternion(cameraRotation));
             campos += heroPosition;
+            
             Vector3 camup = new Vector3(0, 1, 0);
-            camup = Vector3.Transform(camup, Matrix.CreateFromQuaternion(heroRot));
+            camup = Vector3.Transform(camup, Matrix.CreateFromQuaternion(cameraRotation));
+            
             view = Matrix.CreateLookAt(campos, heroPosition, camup);
             proj = Matrix.CreatePerspectiveFieldOfView(MathHelper.PiOver4, device.Viewport.AspectRatio, 0.2f, 500.0f);
         }
@@ -367,12 +364,12 @@ namespace ProjectBoat
             
             RasterizerState rasterizerState1 = new RasterizerState();
             rasterizerState1.CullMode = CullMode.None;
-            //rasterizerState1.FillMode = FillMode.WireFrame;
             device.RasterizerState = rasterizerState1;
 
             effect.World = Matrix.Identity;
             effect.Projection = proj;
             effect.View = view;
+            
             DrawFloor();
             
 
@@ -391,7 +388,7 @@ namespace ProjectBoat
             this.DrawSky(gameTime);
             this.DrawWorld(gameTime);
             
-            this.DrawHERO1(modelHERO, out worldHERO, gameTime);
+            this.DrawHERO(modelHERO, out worldHERO, gameTime);
             this.DrawBoats(modelEnemy, out worldEnemy, gameTime, boatArray[1]);
 
             if (this.ModelsCollide(modelHERO, worldHERO, modelEnemy, worldEnemy))
@@ -427,7 +424,7 @@ namespace ProjectBoat
 
         #region Draw Verden
 
-        private void DrawHERO1(Model model, out Matrix world, GameTime gameTime)
+        private void DrawHERO(Model model, out Matrix world, GameTime gameTime)
         {
             RasterizerState rasterizerState1 = new RasterizerState();
             rasterizerState1.CullMode = CullMode.None;
@@ -471,6 +468,7 @@ namespace ProjectBoat
             matrixStrack.Push(world);
 
             effect.World = world;
+            
             worldTemp.Draw(world, view, proj);
         }
 
@@ -498,25 +496,16 @@ namespace ProjectBoat
         {
             RasterizerState rasterizerState1 = new RasterizerState();
             rasterizerState1.CullMode = CullMode.None;
-            //rasterizerState1.FillMode = FillMode.WireFrame;
             device.RasterizerState = rasterizerState1;
-
-            // 1: Deklarerere hjelpematriser (for world-transformasjonen):
             Matrix matIdent, matScale, matRotY, matRotZ, matTransl;
 
-            // 2: Initialiser matrisene:
             matIdent = Matrix.Identity;
             matScale = Matrix.CreateScale(0.005f);
             matTransl = Matrix.CreateTranslation(b.BoatPosition);
             matRotY = Matrix.CreateRotationY(b.BoatRotY);
-            matRotZ = Matrix.Identity; // CreateRotationZ(0.0f);
+            matRotZ = Matrix.Identity; 
 
-            //Endrer på enkelte av Bone-matrisene for å gjøre individuelle ModeMesh-transformasjoner:
-
-            //3. Bygg world-matrisa:
             world = matIdent * matScale * matRotZ * matRotY * matTransl;
-
-            //NB! denne må med siden vi har endret på noen av transformasjonsmatrisene (knyttet til kanonen, tårnet m.m.):
             model.CopyAbsoluteBoneTransformsTo(matrixEnemy);
 
             foreach (ModelMesh mesh in model.Meshes)
@@ -526,55 +515,12 @@ namespace ProjectBoat
                     effect.World = matrixEnemy[mesh.ParentBone.Index] * world;
                     effect.View = view;
                     effect.Projection = proj;
-                    // 4b. Lys & action:
-                    //effect.EnableDefaultLighting();
-                    //effect.LightingEnabled = true;
                     effect.VertexColorEnabled = false;
                 }
-                //5. Tegn ModelMesh-objektet i korrekt posisjon i forhold til
-                //   transformasjonene satt i forrige steg.
                 mesh.Draw();
             }
         }
-        /*
-        private void DrawBoats(GameTime gameTime, boat b)
-        {
-            Matrix matScale, matRotateY, matTrans;
-
-            matScale = Matrix.CreateScale(0.005f);
-            matTrans = Matrix.CreateTranslation(b.boatPosition);
-
-            matRotateY = Matrix.CreateRotationY(b.BoatRotY);
-
-            world = matScale * matRotateY * matTrans;
-            matrixStrack.Push(world);
-
-            effect.World = world;
-           
-            //b.BoatPosition = Matrix.Invert(world).Translation;
-            b.BoatModel.Draw(world, camera.ViewMatrix, camera.ProjectionMatrix);
-
-        }
-        /*
-        private void DrawHero(GameTime gameTime)
-        {
-            Matrix matScale, matRotateY, matTrans;
-
-            matScale = Matrix.CreateScale(0.005f);
-            matTrans = Matrix.CreateTranslation(heroPosition);
-
-            matRotateY = Matrix.CreateRotationY(heroRot);
-
-            world = matScale * matRotateY * matTrans;
-            matrixStrack.Push(world);
-
-            effect.World = world;
-
-            //b.BoatPosition = Matrix.Invert(world).Translation;
-            HERO.BoatModel.Draw(world, camera.ViewMatrix, camera.ProjectionMatrix);
-
-        }
-        */
+      
         #endregion
     }
         #endregion
