@@ -25,10 +25,9 @@ namespace ProjectBoat
     {
 
         #region Variabler
+
         private GraphicsDeviceManager graphics;
         private GraphicsDevice device;
-        //private Camera camera;
-        private ThirdPersonCamera camera;
         private InputHandler input;
         private BasicEffect effect;
         private Effect effect2;
@@ -41,14 +40,12 @@ namespace ProjectBoat
         private boat[] boatArray = new boat[3];
         private boat HERO;
         private Vector3 heroPosition = Vector3.Zero;
-        //private float heroRot;
-        private Vector3 modelVelocity = Vector3.Zero;
 
-        
+        private Vector3 modelVelocity = Vector3.Zero;
         private Quaternion heroRot = Quaternion.Identity;
 
         // kolisjons stuff
-        private CubeComponent cube;
+       // private CubeComponent cube;
         
         //Modeller:
         private Model modelHERO;
@@ -61,13 +58,6 @@ namespace ProjectBoat
         //Tar vare på opprinnelig Bone-transformasjoner:
         private Matrix[] originalTransforms1;
         private Matrix[] originalTransforms2;
-        
-        // kamera
-        private const float CAMERA_FOVX = 80.0f;
-        private const float CAMERA_ZFAR = 100f * 3.0f;
-        private const float CAMERA_ZNEAR = 1.0f;
-        private const float CAMERA_MAX_SPRING_CONSTANT = 100.0f;
-        private const float CAMERA_MIN_SPRING_CONSTANT = 1.0f;
 
         private VertexBuffer vertexBuffer;
         private Texture2D vann;
@@ -77,13 +67,11 @@ namespace ProjectBoat
         private const float FLOOR_TILE_U = 4.0f;
         private const float FLOOR_TILE_V = 4.0f;
 
-        /*
-        private Vector3 camTar = Vector3.Zero;
-        private Vector3 camUpVec = Vector3.Up;
-        private Vector3 camPos = new Vector3(1f, 2f, 0f);
-        */
+        private Model skyboxModel;
 
+        private bool infotext = false;
         private bool isCollition = false;
+
         #endregion
 
 
@@ -96,11 +84,6 @@ namespace ProjectBoat
 
             input = new InputHandler(this);
             this.Components.Add(input);
-
-            /*
-            camera = new Camera(this);
-            this.Components.Add(camera);
-            */
 
             this.IsFixedTimeStep = true;
         }
@@ -130,11 +113,7 @@ namespace ProjectBoat
            
             base.Initialize();
             this.IsMouseVisible = true;
-            // Setup the camera.         
-            camera = new ThirdPersonCamera();
-            camera.Perspective(CAMERA_FOVX, (float)1400 / (float)800, CAMERA_ZNEAR, CAMERA_ZFAR);
-            camera.LookAt(new Vector3(0.0f, 2 * 3.0f, 2 * -7.0f), Vector3.Zero, Vector3.Up);
-
+          
         }
 
         protected override void LoadContent()
@@ -144,20 +123,13 @@ namespace ProjectBoat
 
             // loading of font used for camera info
             font = Content.Load<SpriteFont>("font");
-            effect2 = Content.Load<Effect>(@"Effects\blinn_phong");
+            effect2 = Content.Load<Effect>(@"Effects\effects");
             vann = Content.Load<Texture2D>(@"Textures\tex_water");
+            
         }
-
 
         #region kolisjon
 
-        /// <summary>
-        /// Laster angitt modell og beregner "global" boundingsphere.
-        /// </summary>
-        /// <param name="modelName"></param>
-        /// <param name="matrix"></param>
-        /// <param name="originalTransforms"></param>
-        /// <returns></returns>
         private Model LoadModelWithBoundingSphere(String modelName, ref Matrix[] matrix, ref Matrix[] originalTransforms)
         {
             Model model = Content.Load<Model>(modelName);
@@ -174,37 +146,14 @@ namespace ProjectBoat
             foreach (ModelMesh mesh in model.Meshes)
             {
                 BoundingSphere origMeshSphere = mesh.BoundingSphere;
-                //denne må transformeres i forhold til sitt Bone:
                 origMeshSphere = XNAUtils.TransformBoundingSphere(origMeshSphere, matrix[mesh.ParentBone.Index]);
-
                 completeBoundingSphere = BoundingSphere.CreateMerged(completeBoundingSphere, origMeshSphere);
-
             }
-            model.Tag = completeBoundingSphere;
 
-            //completeBoundingSphere inneholder nå en komplett omsluttende sfære for hele modellen. 
-            //Tar vare på relative transformasjonsmatriser (for animasjon):
+            model.Tag = completeBoundingSphere;
             originalTransforms = new Matrix[model.Bones.Count];
             model.CopyBoneTransformsTo(originalTransforms);
             return model;
-        }
-
-        /// <summary>
-        /// Returnerer true dersom tankModel2 overlapper kuben.
-        /// </summary>
-        /// <param name="model2"></param>
-        /// <param name="world2"></param>
-        /// <returns></returns>
-        bool CubeCollide(Model _model, Matrix _world)
-        {
-            BoundingSphere origSphere2 = (BoundingSphere)_model.Tag;
-            BoundingSphere sphere2 = XNAUtils.TransformBoundingSphere(origSphere2, _world);
-
-            BoundingBox origCubeBox = cube.CubeBoundingBox;
-            BoundingBox cubeBox = XNAUtils.TransformBoundingBox(origCubeBox, cube.World);
-
-            bool collision = sphere2.Intersects(cubeBox);
-            return collision;
         }
 
         bool ModelsCollide(Model _model1, Matrix _world1, Model _model2, Matrix _world2)
@@ -226,16 +175,14 @@ namespace ProjectBoat
             // different textures
             Textures[0] = Content.Load<Texture2D>("Textures/tex_ship_hero");    // HeroBoat
             Textures[1] = Content.Load<Texture2D>("Textures/soil_texture");    // jordtextur
-
-            // modelTank1 = this.LoadModelWithBoundingSphere(@"Content/Models/tank", ref matrixTank1, ref originalTransforms1);
-
+            Textures[2] = Content.Load<Texture2D>("Textures/skybox_top");
+            Textures[3] = Content.Load<Texture2D>("Sprites/map");
 
             // hero
             modelHERO = this.LoadModelWithBoundingSphere("Models/HeroShip", ref matrixHERO, ref originalTransforms1);
             HERO = new boat(10, 10, 10, new Vector3(10, 10, 10));
-            HERO.BoatModel = modelHERO;//Content.Load<Model>("Models/HeroShip");  // HeroBoat Model
+            HERO.BoatModel = modelHERO;
             (HERO.BoatModel.Meshes[0].Effects[0] as BasicEffect).EnableDefaultLighting();
-
 
             // enemy boats
             boatArray[0] = new boat(-7, 0, 20, new Vector3(-7, 0, 15));
@@ -246,7 +193,7 @@ namespace ProjectBoat
             for (int i = 0; i < boatArray.Length; i++) 
             {
                 modelEnemy = this.LoadModelWithBoundingSphere("Models/EnemyShip", ref matrixEnemy, ref originalTransforms2);
-                boatArray[i].BoatModel = modelEnemy; //Content.Load<Model>("Models/EnemyShip");
+                boatArray[i].BoatModel = modelEnemy; 
                 (boatArray[i].BoatModel.Meshes[0].Effects[0] as BasicEffect).EnableDefaultLighting();
             }
 
@@ -256,6 +203,8 @@ namespace ProjectBoat
             (worldTemp.Meshes[0].Effects[0] as BasicEffect).Texture = Textures[1];
             (worldTemp.Meshes[0].Effects[0] as BasicEffect).TextureEnabled = true;
 
+            // skybox model 
+            skyboxModel = Content.Load<Model>("Models/skybox2");
         }
         
         protected override void UnloadContent()
@@ -272,17 +221,6 @@ namespace ProjectBoat
             // Get some input.
             UpdateInput();
 
-            if (!isCollition)
-            {
-                // Add velocity to the current position.
-                heroPosition += modelVelocity;
-            }   
-            // Bleed off velocity over time.
-            modelVelocity *= 0.95f;
-
-            //camera.Rotate((forward > 0.0f) ? heading : -heading, 0.0f);
-            camera.LookAt(heroPosition);
-            camera.Update(gameTime);
             base.Update(gameTime);
         }
         #endregion
@@ -305,17 +243,25 @@ namespace ProjectBoat
             if (input.KeyboardState.IsKeyDown(Keys.A))
             {
                 float turn = 0.1f;
-               // heroRot = heroRot + turn;
                 leftRightRot -= turn;           
             }
 
             if (input.KeyboardState.IsKeyDown(Keys.D))
             {
-                //heroRot = heroRot - 0.1f; 
                 float turn = 0.1f;
-                // heroRot = heroRot + turn;
                 leftRightRot += turn;       
             }
+
+            if (input.KeyboardState.IsKeyDown(Keys.I))
+            {
+                infotext = true;
+            }
+
+            if (input.KeyboardState.IsKeyDown(Keys.O))
+            {
+                infotext = false;
+            }
+
             float upDownRot = 0;
             Quaternion additionalRot = Quaternion.CreateFromAxisAngle(new Vector3(0, -1, 0), leftRightRot) * Quaternion.CreateFromAxisAngle(new Vector3(1, 0, 0), upDownRot);
             heroRot *= additionalRot;            
@@ -375,8 +321,6 @@ namespace ProjectBoat
             vertexBuffer.SetData(vertices);
         }
 
-        
-
         private void DrawFloor()
         {
             CreateFloor();
@@ -399,7 +343,7 @@ namespace ProjectBoat
 
         private void UpdateCamera()
         {
-            Vector3 campos = new Vector3(0, 5, -10);
+            Vector3 campos = new Vector3(0, 2, -10);
 
             campos = Vector3.Transform(campos, Matrix.CreateFromQuaternion(heroRot));
             campos += heroPosition;
@@ -430,34 +374,34 @@ namespace ProjectBoat
             effect.Projection = proj;
             effect.View = view;
             DrawFloor();
+            
 
             Matrix worldMatrix = Matrix.CreateScale(0.0005f, 0.0005f, 0.0005f) * Matrix.CreateRotationY(MathHelper.Pi) * Matrix.CreateFromQuaternion(heroRot) * Matrix.CreateTranslation(heroPosition);
 
-            /*
+            
             effect.LightingEnabled = true;
             effect.DirectionalLight0.Enabled = true;
             effect.DirectionalLight0.DiffuseColor = Color.Yellow.ToVector3();
             effect.DirectionalLight0.Direction = Vector3.Normalize(new Vector3(-1.0f, -1.5f, 0.0f));
-            effect.EmissiveColor = Color.Red.ToVector3();
-            effect.DirectionalLight0.Enabled = false;
-            */
+            effect.EmissiveColor = Color.Blue.ToVector3();
+            effect.DirectionalLight0.Enabled = true;
+            
 
             Matrix worldHERO, worldEnemy;
+            this.DrawSky(gameTime);
             this.DrawWorld(gameTime);
+            
             this.DrawHERO1(modelHERO, out worldHERO, gameTime);
             this.DrawBoats(modelEnemy, out worldEnemy, gameTime, boatArray[1]);
 
             if (this.ModelsCollide(modelHERO, worldHERO, modelEnemy, worldEnemy))
             {
                 spriteBatch.Begin();
-                spriteBatch.DrawString(font, "COLLISJON!!!! ", new Vector2(0.0f, 50), Color.Red);
+                if (infotext)
+                {
+                    spriteBatch.DrawString(font, "COLLISJON!!!! ", new Vector2(0.0f, 50), Color.Red);
+                }
                 spriteBatch.End();
-
-                Vector3 modelVelocityAdd = Vector3.Zero;
-                modelVelocityAdd *= (float)-0.111f;
-                modelVelocity += modelVelocityAdd;
-                // Add velocity to the current position.
-                heroPosition -= modelVelocity;
 
                 isCollition = true;
             }
@@ -468,7 +412,11 @@ namespace ProjectBoat
             
 
             spriteBatch.Begin();
-            spriteBatch.DrawString(font, "Boat Info: " + heroPosition + "\n heroRot: " + heroRot, new Vector2(0.0f, 1), Color.WhiteSmoke);
+            if (infotext)
+            {
+                spriteBatch.DrawString(font, "Boat Info: " + heroPosition + "\n heroRot: " + heroRot, new Vector2(0.0f, 1), Color.WhiteSmoke);
+            }
+            spriteBatch.Draw(Textures[3], new Rectangle(Window.ClientBounds.Width-170, 0, 170, 170), null, Color.White, 0, Vector2.Zero, SpriteEffects.None, 0);
             spriteBatch.End();
 
 
@@ -483,26 +431,15 @@ namespace ProjectBoat
         {
             RasterizerState rasterizerState1 = new RasterizerState();
             rasterizerState1.CullMode = CullMode.None;
-            //rasterizerState1.FillMode = FillMode.WireFrame;
             device.RasterizerState = rasterizerState1;
 
-            // 1: Deklarerere hjelpematriser (for world-transformasjonen):
             Matrix matIdent, matScale, matRotY, matTransl;
 
-            // 2: Initialiser matrisene:
             matIdent = Matrix.Identity;
             matScale = Matrix.CreateScale(0.005f);
-            //matTransl = Matrix.CreateTranslation(0.0f, 0.0f, 0.0f);
             matTransl = Matrix.CreateTranslation(heroPosition);
-
-
             matRotY = Matrix.CreateFromQuaternion(heroRot);
-            
-
-            //3. Bygg world-matrisa:
             world = matIdent * matScale * matRotY * matTransl;
-
-            //NB! denne må med siden vi har endret på noen av transformasjonsmatrisene (knyttet til kanonen, tårnet m.m.):
             model.CopyAbsoluteBoneTransformsTo(matrixHERO);
 
             foreach (ModelMesh mesh in model.Meshes)
@@ -512,19 +449,14 @@ namespace ProjectBoat
                     effect.World = matrixHERO[mesh.ParentBone.Index] * world;
                     effect.View = view;
                     effect.Projection = proj;
-                    // 4b. Lys & action:
-                    //effect.EnableDefaultLighting();
-                    //effect.LightingEnabled = true;
+                    
+                    effect.EnableDefaultLighting();
+                    effect.LightingEnabled = true;
                     effect.VertexColorEnabled = false;
                 }
-                //5. Tegn ModelMesh-objektet i korrekt posisjon i forhold til
-                //   transformasjonene satt i forrige steg.
                 mesh.Draw();
             }
         }
-
-
-
 
         public void DrawWorld(GameTime gameTime)
         {
@@ -541,6 +473,23 @@ namespace ProjectBoat
             effect.World = world;
             worldTemp.Draw(world, view, proj);
         }
+
+        public void DrawSky(GameTime gameTime)
+        {
+            Matrix matScale, matRotateY, matTrans;
+
+            matScale = Matrix.CreateScale(1.205f, 0.485f, 1.205f);
+            matTrans = Matrix.CreateTranslation(0.0f, 0.0f, 0.0f);
+
+            matRotateY = Matrix.CreateRotationY(0f);
+
+            world = matScale * matRotateY * matTrans;
+            matrixStrack.Push(world);
+
+            effect.World = world;
+            skyboxModel.Draw(world, view, proj);
+        }
+
         #endregion
 
         #region DrawBoat
