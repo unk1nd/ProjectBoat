@@ -4,6 +4,14 @@
  *  Mikael Bendiksen, Lisa Marie Sørensen og Svein Olav Bustnes
  *  2013
  * 
+ * Controlls:
+ * 
+ * Forward: W
+ * Rotate left: A
+ * Rotate Right: D
+ * Debug mode on: I
+ * Debug mode off: O
+ * 
 */
 
 
@@ -46,16 +54,22 @@ namespace ProjectBoat
         Quaternion cameraRotation = Quaternion.Identity;
         
         //Modeller:
-        private Model modelHERO;
-        private Model modelEnemy;
+        private Model modelHERO, modelEnemy;
+        private Model modelWorld_North, modelWorld_East, modelWorld_West, modelWorld_South, modelIsland1, modelIsland2, modelIsland3;
 
         //Materiser som holder "akkumulerte" bone-transformasjonene:
-        private Matrix[] matrixHERO;
-        private Matrix[] matrixEnemy;
+        private Matrix[] matrixHERO, matrixEnemy;
+        private Matrix[] matrixWorld_North, matrixWorld_East, matrixWorld_West, matrixWorld_South, matrixIsland1, matrixIsland2, matrixIsland3;
 
         //Tar vare på opprinnelig Bone-transformasjoner:
         private Matrix[] originalTransforms1;
         private Matrix[] originalTransforms2;
+        private Matrix[] originalTransforms3;
+        private Matrix[] originalTransforms4;
+        private Matrix[] originalTransforms5;
+        private Matrix[] originalTransforms6;
+        private Matrix[] originalTransforms7;
+        private Matrix[] originalTransforms8;
 
         private VertexBuffer vertexBuffer;
         private Texture2D vann;
@@ -70,7 +84,11 @@ namespace ProjectBoat
         private bool infotext = false;
         private bool isCollition = false;
 
-       
+        private int windowWidth;
+        private int windowHeight;
+        private int frames;
+        private int framesPerSecond;
+        private TimeSpan elapsedTime = TimeSpan.Zero;
 
         public bool isFullScreen = false;
         #endregion
@@ -88,9 +106,14 @@ namespace ProjectBoat
 
         private void initDevice()
         {
+            // Setup the window to be a quarter the size of the desktop.
+            windowWidth = GraphicsDevice.DisplayMode.Width -200;
+            windowHeight = GraphicsDevice.DisplayMode.Height -200;
+
+            // Setup frame buffer.
             device = graphics.GraphicsDevice;
-            graphics.PreferredBackBufferWidth = 1400;
-            graphics.PreferredBackBufferHeight = 800;
+            graphics.PreferredBackBufferWidth = windowWidth;
+            graphics.PreferredBackBufferHeight = windowHeight;
             graphics.IsFullScreen = isFullScreen;
             graphics.PreferMultiSampling = true;
             graphics.SynchronizeWithVerticalRetrace = false;
@@ -162,7 +185,7 @@ namespace ProjectBoat
             return collision;
         }
 
-#endregion
+        #endregion
 
         private void loadBoatObjects()
         {
@@ -174,14 +197,14 @@ namespace ProjectBoat
 
             // hero
             modelHERO = this.LoadModelWithBoundingSphere("Models/HeroShip", ref matrixHERO, ref originalTransforms1);
-            HERO = new boat(10, 10, 10, new Vector3(10, 10, 10));
+            HERO = new boat(10, new Vector3(5, 5, 10));
             HERO.BoatModel = modelHERO;
             (HERO.BoatModel.Meshes[0].Effects[0] as BasicEffect).EnableDefaultLighting();
 
             // enemy boats
-            boatArray[0] = new boat(-7, 0, 20, new Vector3(-7, 0, 15));
-            boatArray[1] = new boat(-8, 0, 50, new Vector3(-8, 0, 10));
-            boatArray[2] = new boat(-9, 0, 180, new Vector3(-9, 0, 5));
+            boatArray[0] = new boat(6, new Vector3(6, 0, -4));
+            boatArray[1] = new boat(50, new Vector3(-8, 0, 10));
+            boatArray[2] = new boat(180, new Vector3(-9, 0, 5));
 
             // array for setting enemy boats models
             for (int i = 0; i < boatArray.Length; i++) 
@@ -192,11 +215,14 @@ namespace ProjectBoat
             }
 
             // load world model and load texture
-            worldTemp = Content.Load<Model>("Models/World_Total");
-            (worldTemp.Meshes[0].Effects[0] as BasicEffect).EnableDefaultLighting();
-            (worldTemp.Meshes[0].Effects[0] as BasicEffect).Texture = Textures[1];
-            (worldTemp.Meshes[0].Effects[0] as BasicEffect).TextureEnabled = true;
-
+            modelWorld_North = this.LoadModelWithBoundingSphere("Models/World_Northnew", ref matrixWorld_North, ref originalTransforms2);
+            modelWorld_East = this.LoadModelWithBoundingSphere("Models/World_Eastnew", ref matrixWorld_East, ref originalTransforms3);
+            modelWorld_West = this.LoadModelWithBoundingSphere("Models/World_Westnew", ref matrixWorld_West, ref originalTransforms4);
+            modelWorld_South = this.LoadModelWithBoundingSphere("Models/World_Southnew", ref matrixWorld_South, ref originalTransforms5);
+            modelIsland1 = this.LoadModelWithBoundingSphere("Models/Island1new", ref matrixIsland1, ref originalTransforms6);
+            modelIsland2 = this.LoadModelWithBoundingSphere("Models/Island2new", ref matrixIsland2, ref originalTransforms7);
+            modelIsland3 = this.LoadModelWithBoundingSphere("Models/Island3new", ref matrixIsland3, ref originalTransforms8);
+            
             // skybox model 
             skyboxModel = Content.Load<Model>("Models/skybox2");
         }
@@ -207,6 +233,7 @@ namespace ProjectBoat
         #region update
         protected override void Update(GameTime gameTime)
         {
+            UpdateFrameRate(gameTime);
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
                 this.Exit();
 
@@ -218,8 +245,11 @@ namespace ProjectBoat
         #endregion
 
         #region keyinputs
+
+        
         protected void UpdateInput()
         {
+            
             Vector3 modelVelocityAdd = Vector3.Zero;
 
             float leftRightRot = 0;
@@ -259,7 +289,24 @@ namespace ProjectBoat
             heroRot *= additionalRot;            
 
         }
-        
+
+        private void UpdateFrameRate(GameTime gameTime)
+        {
+            elapsedTime += gameTime.ElapsedGameTime;
+
+            if (elapsedTime > TimeSpan.FromSeconds(1))
+            {
+                elapsedTime -= TimeSpan.FromSeconds(1);
+                framesPerSecond = frames;
+                frames = 0;
+            }
+        }
+
+        private void IncrementFrameCounter()
+        {
+            ++frames;
+        }
+
 
         private void MoveForward(ref Vector3 position, Quaternion rotationQuat, float speed)
         {
@@ -382,21 +429,40 @@ namespace ProjectBoat
             effect.DirectionalLight0.Direction = Vector3.Normalize(new Vector3(-1.0f, -1.5f, 0.0f));
             effect.EmissiveColor = Color.Blue.ToVector3();
             effect.DirectionalLight0.Enabled = true;
-            
 
-            Matrix worldHERO, worldEnemy;
+
+            Matrix worldHERO, worldEnemy, worldNorth, worldWest, worldEast, worldSouth, worldIsland1, worldIsland2, worldIsland3;
             this.DrawSky(gameTime);
-            this.DrawWorld(gameTime);
+            
             
             this.DrawHERO(modelHERO, out worldHERO, gameTime);
-            this.DrawBoats(modelEnemy, out worldEnemy, gameTime, boatArray[1]);
+            this.DrawWorldItems(modelWorld_North, out worldNorth, gameTime, 31, 0, matrixWorld_North);
+            this.DrawWorldItems(modelWorld_East, out worldEast, gameTime, 0, 31, matrixWorld_East);
+            this.DrawWorldItems(modelWorld_West, out worldWest, gameTime, 0,-31, matrixWorld_West);
+            this.DrawWorldItems(modelWorld_South, out worldSouth, gameTime, -31, 0, matrixWorld_South);
+            this.DrawWorldItems(modelIsland1, out worldIsland1, gameTime, -12f, 12 , matrixIsland1);
+            this.DrawWorldItems(modelIsland2, out worldIsland2, gameTime, 12, -12, matrixIsland2);
+            this.DrawWorldItems(modelIsland3, out worldIsland3, gameTime, 12, 12, matrixIsland3);
+            this.DrawBoats(modelEnemy, out worldEnemy, gameTime, boatArray[0]);
 
-            if (this.ModelsCollide(modelHERO, worldHERO, modelEnemy, worldEnemy))
+
+            
+            if (
+                this.ModelsCollide(modelHERO, worldHERO, modelEnemy, worldEnemy) ||
+                /* this.ModelsCollide(modelHERO, worldHERO, modelWorld_North, worldNorth) || // did not work as intended!!! ;*(
+                 this.ModelsCollide(modelHERO, worldHERO, modelWorld_East, worldEast) ||
+                 this.ModelsCollide(modelHERO, worldHERO, modelWorld_West, worldWest) ||
+                 this.ModelsCollide(modelHERO, worldHERO, modelWorld_South, worldSouth)||*/
+                 this.ModelsCollide(modelHERO, worldHERO, modelIsland1, worldIsland1) ||
+                 this.ModelsCollide(modelHERO, worldHERO, modelIsland2, worldIsland2) ||
+                 this.ModelsCollide(modelHERO, worldHERO, modelIsland3, worldIsland3) 
+                
+                )
             {
                 spriteBatch.Begin();
                 if (infotext)
                 {
-                    spriteBatch.DrawString(font, "COLLISJON!!!! ", new Vector2(0.0f, 50), Color.Red);
+                    spriteBatch.DrawString(font, "COLLISJON!!!! ", new Vector2(0.0f, 80), Color.Red);
                 }
                 spriteBatch.End();
 
@@ -411,7 +477,7 @@ namespace ProjectBoat
             spriteBatch.Begin();
             if (infotext)
             {
-                spriteBatch.DrawString(font, "Boat Info: " + heroPosition + "\n heroRot: " + heroRot, new Vector2(0.0f, 1), Color.WhiteSmoke);
+                spriteBatch.DrawString(font, "Boat Info: " + heroPosition + "\nBoatRot: " + heroRot + "\nFPS: " + framesPerSecond, new Vector2(0.0f, 1), Color.WhiteSmoke);
             }
             spriteBatch.Draw(Textures[3], new Rectangle(Window.ClientBounds.Width-170, 0, 170, 170), null, Color.White, 0, Vector2.Zero, SpriteEffects.None, 0);
             spriteBatch.End();
@@ -420,9 +486,43 @@ namespace ProjectBoat
             UpdateCamera();
 
             base.Draw(gameTime);
+            IncrementFrameCounter();
         }
 
         #region Draw Verden
+
+        private void DrawWorldItems(Model model, out Matrix world, GameTime gameTime, float x, float z, Matrix[] m)
+        {
+            RasterizerState rasterizerState1 = new RasterizerState();
+            rasterizerState1.CullMode = CullMode.None;
+            device.RasterizerState = rasterizerState1;
+
+            Matrix matIdent, matScale, matRotY, matTransl;
+
+            matIdent = Matrix.Identity;
+            matScale = Matrix.CreateScale(0.005f);
+            matTransl = Matrix.CreateTranslation(x, 0, z);
+
+            matRotY = Matrix.CreateRotationY(0f);
+            world = matIdent * matScale * matRotY * matTransl;
+            
+            model.CopyAbsoluteBoneTransformsTo(m);
+
+            foreach (ModelMesh mesh in model.Meshes)
+            {
+                foreach (BasicEffect effect in mesh.Effects)
+                {
+                    effect.World = m[mesh.ParentBone.Index] * world;
+                    effect.View = view;
+                    effect.Projection = proj;
+
+                    effect.EnableDefaultLighting();
+                    effect.LightingEnabled = true;
+                    effect.VertexColorEnabled = false;
+                }
+                mesh.Draw();
+            }
+        }
 
         private void DrawHERO(Model model, out Matrix world, GameTime gameTime)
         {
@@ -468,8 +568,11 @@ namespace ProjectBoat
             matrixStrack.Push(world);
 
             effect.World = world;
-            
-            worldTemp.Draw(world, view, proj);
+
+            modelWorld_North.Draw(world, view, proj);
+            modelWorld_East.Draw(world, view, proj);
+            modelWorld_West.Draw(world, view, proj);
+            modelWorld_South.Draw(world, view, proj);
         }
 
         public void DrawSky(GameTime gameTime)
